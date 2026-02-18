@@ -111,7 +111,7 @@ export async function explainInDarija(text: string) {
     try {
       return await withKeyRotation("GEMINI_API_KEY", async (key) => {
         const genAI = new GoogleGenerativeAI(key);
-        const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const result = await model.generateContent(prompt);
         const response = await result.response;
         return response.text();

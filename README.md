@@ -100,5 +100,21 @@ EduMagic features a **Studio Dark Theme** designed to wow users:
 EduMagic features a built-in `withKeyRotation` higher-order function. If an API key hits its rate limit (429) or fails unexpectedly, the system automatically rotates to the next available key in your `.env`, ensuring 99.9% uptime for the user experience.
 
 ---
+```
+🚀 Action Required: Set Up Free PostgreSQL Database
+You need a free hosted database. Neon.tech is the easiest (free forever):
+
+Go to neon.tech → Sign up free
+Create a new project → Copy the Connection String (looks like postgresql://user:pass@host/db?sslmode=require)
+In Vercel → Your project → Settings → Environment Variables → Add:
+DATABASE_URL = your Neon connection string
+Also add all your other keys from 
+.env
+ to Vercel's environment variables (Gemini, OpenAI, Clerk, RapidAPI)
+Run locally: npx prisma db push (with the Neon URL in 
+.env
+) to create the tables
+Redeploy on Vercel
+```
 
 © 2026 EduMagic - Empowering Intelligence through AI 🚀
