@@ -297,7 +297,7 @@ export default function LessonPage() {
   const shuffledOptions = useMemo(() => {
     if (!lesson) return [];
     const lessonData = lesson.content;
-    const isNewFormat = !!lessonData?.steps;
+    const isNewFormat = !!(lessonData as any)?.steps;
     const normalizedSteps: Step[] = isNewFormat 
       ? (lessonData as NewLessonContent).steps 
       : (lessonData as LegacyLessonContent).quizzes?.map((q, i) => ({
@@ -407,7 +407,9 @@ export default function LessonPage() {
   );
 
   const lessonData = lesson.content;
-  const isNewFormat = !!lessonData.steps;
+  const isNewFormat = !!(lessonData as any).steps;
+  // Typed helper for new format content — avoids union type errors
+  const newContent = isNewFormat ? (lessonData as NewLessonContent) : null;
 
   // Normalization for legacy lessons
   const normalizedSteps: Step[] = isNewFormat 
@@ -605,7 +607,7 @@ export default function LessonPage() {
                 {lesson.topic}
               </h1>
               <p className="text-2xl text-slate-600 dark:text-slate-400 font-bold max-w-2xl mx-auto leading-relaxed">
-                {isNewFormat ? lessonData.introduction : t.readyToMaster}
+                {isNewFormat ? newContent?.introduction : t.readyToMaster}
               </p>
               <div className="flex flex-col md:flex-row gap-6 justify-center mt-8">
                 <button onClick={() => setCurrentStepIdx(0)} className="btn-magic h-20 px-12 text-2xl tracking-tighter">
@@ -796,14 +798,14 @@ export default function LessonPage() {
               <div className="space-y-4">
                 <h2 className="text-6xl font-black gradient-text tracking-tighter">{t.missionAccomplished}</h2>
                 <p className="text-2xl text-slate-600 dark:text-slate-400 font-bold max-w-xl mx-auto">
-                  {isNewFormat ? lessonData.final_motivation : t.youFinished}
+                  {isNewFormat ? newContent?.final_motivation : t.youFinished}
                 </p>
               </div>
 
               <div className="glass-card p-8 bg-slate-100 dark:bg-white/[0.03] max-w-2xl mx-auto border-slate-200 dark:border-white/5">
                 <p className="text-sm font-black uppercase tracking-widest text-slate-500 mb-4">{t.journeySummary}</p>
                 <div className="text-lg text-slate-700 dark:text-slate-300 leading-relaxed italic">
-                  &quot;{isNewFormat ? lessonData.summary : t.keepPracticing}&quot;
+                  &quot;{isNewFormat ? newContent?.summary : t.keepPracticing}&quot;
                 </div>
               </div>
 
