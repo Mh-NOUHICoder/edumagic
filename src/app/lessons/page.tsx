@@ -28,7 +28,7 @@ export default function MyLessons() {
     queryFn: async () => {
       const res = await fetch("/api/lessons");
       if (!res.ok) {
-        toast.error("The archives are currently inaccessible.");
+        toast.error(t.archivesInaccessible);
         throw new Error("Failed to fetch lessons");
       }
       return res.json() as Promise<Lesson[]>;
@@ -43,7 +43,7 @@ export default function MyLessons() {
     <div className="min-h-screen bg-bg-space transition-colors duration-500 overflow-x-hidden overflow-y-auto relative">
       <Navbar />
       <Sidebar />
-      <main className="lg:ml-64 pt-20 md:pt-24 px-4 md:px-8 pb-20 relative z-10">
+      <main className="lg:ms-64 pt-20 md:pt-24 px-4 md:px-8 pb-20 relative z-10">
         {/* Background Ornaments */}
         <div className="orb orb-cyan -top-40 -left-20" />
         <div className="orb orb-purple top-1/2 -right-40" />
@@ -58,7 +58,7 @@ export default function MyLessons() {
               >
                 {t.myLessons}
               </motion.h1>
-              <p className="text-slate-400 font-medium text-sm md:text-base">Your personal library of cosmic knowledge.</p>
+              <p className="text-slate-400 font-medium text-sm md:text-base">{t.personalLibrary}</p>
             </div>
 
             <div className="relative group flex-1 md:max-w-md w-full">
@@ -66,7 +66,7 @@ export default function MyLessons() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 md:w-5 h-4 md:h-5 text-slate-500 group-focus-within:text-primary transition-colors" />
               <input
                 type="text"
-                placeholder="Search your library..."
+                placeholder={t.searchPlaceholder}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="relative w-full bg-bg-space/50 border border-white/10 rounded-2xl pl-12 pr-4 py-3 md:py-4 outline-none focus:border-primary/50 transition-all font-bold text-white placeholder:text-slate-600 text-sm md:text-base"
@@ -82,7 +82,7 @@ export default function MyLessons() {
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-40 gap-4">
               <Loader2 className="w-12 h-12 animate-spin text-primary" />
-              <p className="text-primary font-black animate-pulse uppercase tracking-[0.2em] text-xs">Summoning Lessons...</p>
+              <p className="text-primary font-black animate-pulse uppercase tracking-[0.2em] text-xs">{t.summoningLessons}</p>
             </div>
           ) : filteredLessons && filteredLessons.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -131,9 +131,9 @@ export default function MyLessons() {
               <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-8">
                 <BookOpen className="w-12 h-12 text-slate-700" />
               </div>
-              <h3 className="text-3xl font-black mb-3 text-white">No cosmic data found</h3>
+              <h3 className="text-3xl font-black mb-3 text-white">{t.noCosmicData}</h3>
               <p className="text-slate-500 mb-10 max-w-md mx-auto font-medium">
-                {search ? `The archives show no records for "${search}".` : "Your journey through the learning cosmos hasn't begun yet."}
+                {search ? `${t.noRecordsFound} "${search}".` : t.journeyNotStarted}
               </p>
               <Link href="/lesson/new" className="btn-magic inline-flex items-center gap-3 scale-110">
                 <Sparkles className="w-5 h-5 text-black" />

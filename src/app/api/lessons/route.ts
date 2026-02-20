@@ -9,11 +9,13 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    console.log(`[GET /api/lessons] Fetching inventory for user: ${userId}`);
     const lessons = await prisma.lesson.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
     });
 
+    console.log(`[GET /api/lessons] Found ${lessons.length} pieces of wisdom.`);
     return NextResponse.json(lessons);
   } catch (error) {
     console.error("Fetch User Lessons Error:", error);

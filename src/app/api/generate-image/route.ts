@@ -111,7 +111,7 @@ async function attemptGeneration(provider: string, prompt: string, apiKey: strin
                 if (res.ok) {
                     const data = JSON.parse(text);
                     // Check if image is immediate
-                    let imageUrl = data.generated_image || data.image_url || data.url || data.image || data.imageUrl;
+                    const imageUrl = data.generated_image || data.image_url || data.url || data.image || data.imageUrl;
                     
                     if (imageUrl) return { imageUrl, provider, rawData: data };
 
@@ -139,7 +139,7 @@ async function attemptGeneration(provider: string, prompt: string, apiKey: strin
                                         const foundUrl = pollData.generated_image || pollData.image_url || pollData.url || pollData.image || pollData.imageUrl || (pollData.data && pollData.data[0]?.url);
                                         if (foundUrl) return { imageUrl: foundUrl, provider, rawData: pollData };
                                     }
-                                } catch (e) {
+                                } catch {
                                     // Silent fail for individual poll attempts
                                 }
                             }
@@ -147,8 +147,8 @@ async function attemptGeneration(provider: string, prompt: string, apiKey: strin
                     }
                 }
                 lastErr = `Endpoint ${url} responded with ${status}: ${text}`;
-            } catch (e: any) {
-                lastErr = e.message;
+            } catch (e: unknown) {
+                lastErr = (e as Error).message;
             }
         }
         throw new Error(`Midjourney Probing Failed. Last Status: ${lastErr}. Hint: Check subscription status on RapidAPI.`);
@@ -197,7 +197,7 @@ async function attemptGeneration(provider: string, prompt: string, apiKey: strin
     let data: ApiResponse = {};
     try {
         if (responseText) data = JSON.parse(responseText);
-    } catch {
+    } catch { 
         throw new Error(`Invalid JSON response from ${provider}: ${responseText.substring(0, 100)}`);
     }
 

@@ -33,7 +33,9 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="fixed top-0 w-full z-50 bg-bg-space/80 backdrop-blur-3xl h-16 flex items-center justify-between px-6 border-b border-white/5 shadow-premium">
+      <nav className={`fixed top-0 w-full flex items-center justify-between px-6 border-b border-white/5 shadow-premium transition-all duration-500 ${
+        isOpen ? "z-[120] bg-bg-space/95 backdrop-blur-3xl h-20" : "z-50 bg-bg-space/80 backdrop-blur-3xl h-16"
+      }`}>
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3 md:gap-4 group relative shrink-0">
           <div className="absolute -inset-2 bg-primary/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -59,7 +61,7 @@ export default function Navbar() {
                 <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             </button>
             
-            <div className="absolute right-0 top-full mt-2 w-48 py-3 bg-bg-space/95 backdrop-blur-3xl rounded-[1.5rem] border border-white/10 opacity-0 invisible group-hover/lang:opacity-100 group-hover/lang:visible transition-all duration-300 transform origin-top translate-y-2 group-hover/lang:translate-y-0 shadow-2xl z-50">
+            <div className="absolute inset-inline-end-0 top-full mt-2 w-48 py-3 bg-bg-space/95 backdrop-blur-3xl rounded-[1.5rem] border border-white/10 opacity-0 invisible group-hover/lang:opacity-100 group-hover/lang:visible transition-all duration-300 transform origin-top translate-y-2 group-hover/lang:translate-y-0 shadow-2xl z-50">
                 {[
                   { code: 'en' as const, label: 'English', icon: '🇬🇧' },
                   { code: 'ar' as const, label: 'العربية', icon: '🇲🇦' },
@@ -98,7 +100,7 @@ export default function Navbar() {
 
           {/* User Section */}
           {isSignedIn ? (
-            <div className="flex items-center gap-4 pl-4 border-l border-white/10">
+            <div className="flex items-center gap-4 ps-4 border-inline-start border-white/10">
               <UserButton
                 appearance={{
                   elements: {
@@ -114,8 +116,35 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Mobile Menu Toggle */}
-        <div className="flex lg:hidden items-center gap-4">
+        {/* Mobile Controls: Language + Menu */}
+        <div className="flex lg:hidden items-center gap-3">
+          {/* Mobile Language Switcher (Always Visible) */}
+          <div className="relative group/mobile-lang">
+            <button className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/5 border border-white/10 text-primary">
+              <span className="text-lg leading-none">
+                {language === 'en' ? '🇬🇧' : language === 'ar' ? '🇲🇦' : '🇫🇷'}
+              </span>
+            </button>
+            {/* Mobile Dropdown */}
+            <div className="absolute inset-inline-end-0 top-full mt-2 w-12 py-2 bg-bg-space/95 backdrop-blur-3xl rounded-xl border border-white/10 opacity-0 invisible group-hover/mobile-lang:opacity-100 group-hover/mobile-lang:visible transition-all shadow-xl z-50 flex flex-col items-center gap-1">
+               {([
+                  { code: 'en' as const, icon: '🇬🇧' },
+                  { code: 'ar' as const, icon: '🇲🇦' },
+                  { code: 'fr' as const, icon: '🇫🇷' }
+                ]).map((lang) => (
+                  <button
+                    key={lang.code}
+                    onClick={() => setLanguage(lang.code)}
+                    className={`w-8 h-8 flex items-center justify-center rounded-lg text-lg transition-all ${
+                      language === lang.code ? 'bg-primary/20 scale-110' : 'hover:bg-white/10'
+                    }`}
+                  >
+                    {lang.icon}
+                  </button>
+                ))}
+            </div>
+          </div>
+
           {isSignedIn && (
             <UserButton
               appearance={{
@@ -125,14 +154,20 @@ export default function Navbar() {
               }}
             />
           )}
+
+          {/* Hamburger / Close Button */}
           <button 
             onClick={(e) => {
               e.stopPropagation();
               setIsOpen(!isOpen);
             }}
-            className="relative z-60 p-2.5 rounded-xl bg-white/5 border border-white/10 text-primary transition-all active:scale-95"
+            className={`relative z-[110] p-2.5 rounded-xl border transition-all active:scale-95 ${
+              isOpen 
+                ? "bg-red-500/20 border-red-500/50 text-red-500 rotate-90 shadow-[0_0_15px_rgba(239,68,68,0.5)]" 
+                : "bg-white/5 border-white/10 text-primary"
+            }`}
           >
-            {isOpen ? <X className="w-6 h-6 animate-in fade-in zoom-in duration-300" /> : <AlignRight className="w-6 h-6 animate-in fade-in slide-in-from-right-2 duration-300" />}
+            {isOpen ? <X className="w-6 h-6" /> : <AlignRight className="w-6 h-6" />}
           </button>
         </div>
       </nav>
@@ -171,8 +206,8 @@ export default function Navbar() {
               )}
 
               {/* Navigation Links with Staggered Animation */}
-              <div className="space-y-3 mb-10 text-left">
-                <p className="text-[10px] uppercase tracking-[0.4em] text-primary font-black mb-6 pl-2">Navigation Terminal</p>
+              <div className="space-y-3 mb-10 text-start">
+                <p className="text-[10px] uppercase tracking-[0.4em] text-primary font-black mb-6 ps-2">Navigation Terminal</p>
                 {navLinks.map((link, i) => (
                   <motion.div
                     key={link.href}

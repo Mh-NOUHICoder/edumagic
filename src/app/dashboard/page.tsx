@@ -69,7 +69,7 @@ export default function Dashboard() {
       <Navbar />
       <Sidebar />
       
-      <main className="lg:ml-64 pt-20 md:pt-24 px-4 md:px-8 pb-20 relative z-10">
+      <main className="lg:ms-64 pt-20 md:pt-24 px-4 md:px-8 pb-20 relative z-10">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <motion.header
@@ -81,7 +81,7 @@ export default function Dashboard() {
               <h1 className="text-5xl font-black mb-3 text-text-main tracking-tighter">
                 {t.welcome}, <span className="gradient-text">{user?.firstName || user?.username || "Student"}</span>! 👋
               </h1>
-              <p className="text-slate-400 text-lg font-medium">Your quantum leap in learning starts here.</p>
+              <p className="text-slate-600 dark:text-slate-400 text-lg font-medium">{t.quantumLeap}</p>
             </div>
             <Link href="/lesson/new" className="btn-magic flex items-center gap-3 w-fit scale-110 hover:scale-115 transition-transform">
               <Plus className="w-6 h-6" />
@@ -92,7 +92,7 @@ export default function Dashboard() {
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-40 gap-4">
                <Loader2 className="w-12 h-12 animate-spin text-primary" />
-               <p className="text-primary font-black animate-pulse uppercase tracking-widest text-xs">Syncing Data...</p>
+               <p className="text-primary font-black animate-pulse uppercase tracking-widest text-xs">{t.syncingData}</p>
             </div>
           ) : (
             <>
@@ -157,10 +157,10 @@ export default function Dashboard() {
                                 <BookOpen className="text-primary w-7 h-7 group-hover:scale-110 transition-transform" />
                              </div>
                              <div className="flex-1 min-w-0">
-                                <h4 className="font-black text-xl text-white group-hover:text-primary transition-colors truncate">
+                                <h4 className="font-black text-xl text-text-main group-hover:text-primary transition-colors truncate">
                                   {activity.title}
                                 </h4>
-                                <p className="text-xs text-slate-500 font-bold uppercase tracking-wider flex items-center gap-2 mt-1">
+                                <p className="text-xs text-slate-600 dark:text-slate-500 font-bold uppercase tracking-wider flex items-center gap-2 mt-1">
                                   <Calendar className="w-3 h-3" />
                                   {activity.time}
                                 </p>
@@ -176,7 +176,7 @@ export default function Dashboard() {
                     )) : (
                       <div className="glass-card p-16 text-center border-dashed border-white/5">
                         <BookOpen className="w-12 h-12 text-slate-700 mx-auto mb-4" />
-                        <p className="text-slate-500 font-bold">Your journey begins with a single lesson.</p>
+                        <p className="text-slate-500 font-bold">{t.journeyNotStarted}</p>
                       </div>
                     )}
                   </div>
@@ -191,14 +191,14 @@ export default function Dashboard() {
                     transition={{ delay: 0.6 }}
                     className="glass-card p-8 border-primary/20 bg-linear-to-b from-white/[0.08] to-transparent"
                   >
-                    <h3 className="text-2xl font-black text-white mb-8 text-center">Power Level</h3>
+                    <h3 className="text-2xl font-black text-text-main mb-8 text-center">{t.powerLevel}</h3>
                     <div className="flex justify-center mb-8 relative">
                       <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-linear-to-r from-transparent via-primary/20 to-transparent" />
                       <ProgressRing progress={stats.progressPercent} size={160} stroke={12} label={`Level ${stats.level}`} />
                     </div>
                     <div className="space-y-4">
                       <div className="flex justify-between text-xs font-black uppercase tracking-widest">
-                        <span className="text-slate-500">Syncing XP</span>
+                        <span className="text-slate-600 dark:text-slate-500">{t.syncingXP}</span>
                         <span className="text-primary">{(stats.xp % 500).toLocaleString()} / 500</span>
                       </div>
                       <div className="h-3 bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/5">
@@ -209,7 +209,7 @@ export default function Dashboard() {
                           className="h-full bg-linear-to-r from-primary via-secondary to-accent rounded-full shadow-[0_0_15px_rgba(0,242,255,0.5)]" 
                         />
                       </div>
-                      <p className="text-[10px] text-slate-500 text-center font-black uppercase tracking-[0.2em]">{(500 - (stats.xp % 500)).toLocaleString()} XP to Next Evolution</p>
+                      <p className="text-[10px] text-slate-600 dark:text-slate-500 text-center font-black uppercase tracking-[0.2em]">{(500 - (stats.xp % 500)).toLocaleString()} {t.xpToEvolution}</p>
                     </div>
                   </motion.div>
 
@@ -220,7 +220,7 @@ export default function Dashboard() {
                     transition={{ delay: 0.7 }}
                     className="glass-card p-8"
                   >
-                    <h3 className="text-2xl font-black text-white mb-8">{t.achievements}</h3>
+                    <h3 className="text-2xl font-black text-text-main mb-8">{t.achievements}</h3>
                     <div className="grid grid-cols-3 gap-6">
                       {['🌱', '📚', '🧙‍♂️', '⚡', '🌟', '🚀'].map((emoji, idx) => (
                         <motion.div
@@ -288,9 +288,9 @@ function StatsCard({
           {icon}
         </div>
         <div>
-          <p className="text-[10px] text-slate-500 uppercase font-black tracking-[0.2em] mb-1">{label}</p>
+          <p className="text-[10px] text-slate-600 dark:text-slate-500 uppercase font-black tracking-[0.2em] mb-1">{label}</p>
           <h2 className="text-3xl font-black mb-0.5 text-text-main italic group-hover:text-primary transition-colors">{value}</h2>
-          <p className="text-[10px] text-slate-400 font-bold italic">{subValue}</p>
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold italic">{subValue}</p>
         </div>
       </div>
     </motion.div>

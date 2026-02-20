@@ -53,6 +53,7 @@ export async function POST(req: Request) {
         if (prefix.includes('GEMINI')) {
             try {
                 const genAI = new GoogleGenerativeAI(key);
+                // use gemini-3-flash for testing
                 const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
                 await model.generateContent("Hi");
                 return NextResponse.json({ success: true, message: 'Gemini key is valid!' });

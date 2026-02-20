@@ -18,13 +18,13 @@ export default function Sidebar() {
     { href: "/lesson/new", label: t.newLesson, icon: Sparkles },
     { href: "/analytics", label: t.analytics, icon: BarChart2 },
     { href: "/badges", label: t.badges, icon: ShieldCheck },
-    { href: "/test-keys", label: "API Diagnostics", icon: Activity },
-    { href: "/test-image", label: "Neural Lab", icon: ImageIcon },
+    { href: "/test-keys", label: t.apiDiagnostics, icon: Activity },
+    { href: "/test-image", label: t.neuralLab, icon: ImageIcon },
     { href: "/profile", label: t.profile, icon: User },
   ];
 
   return (
-    <aside className="w-64 bg-bg-space/90 backdrop-blur-3xl h-[calc(100vh-4rem)] fixed left-0 top-16 hidden lg:flex flex-col p-6 gap-2 border-r border-white/5 z-40">
+    <aside className="w-64 bg-bg-space/90 backdrop-blur-3xl h-[calc(100vh-4rem)] fixed inset-inline-start-0 top-16 hidden lg:flex flex-col p-6 gap-2 border-inline-end border-white/5 z-40">
       {/* Sidebar Header Decorative Orb */}
       <div className="absolute -top-20 -left-20 w-40 h-40 bg-primary/10 rounded-full blur-[80px] pointer-events-none" />
 
@@ -93,10 +93,10 @@ export default function Sidebar() {
              <div className="p-2 bg-primary/20 rounded-lg">
                 <ShieldCheck className="w-5 h-5 text-primary" />
              </div>
-             <p className="text-xs font-black text-text-main uppercase tracking-wider">Premium</p>
+             <p className="text-xs font-black text-text-main uppercase tracking-wider">{t.premium}</p>
           </div>
           <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
-            Unlock advanced AI tutoring & exclusive Darija content.
+            {t.premiumUnlock}
           </p>
         </div>
       </div>

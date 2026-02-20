@@ -2,86 +2,144 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import { withKeyRotation } from "./apiKeyManager";
 
+const LEVEL_CONTEXT = {
+  beginner: {
+    depth: "Assume ZERO prior knowledge. Use very simple language, everyday analogies, and avoid jargon. Focus on the 'what' and 'why'. Build a solid mental model from scratch.",
+    steps: "5-6 steps",
+    quiz_style: "simple recognition and recall questions",
+    resources_style: "beginner-friendly YouTube videos, simple articles, and introductory books",
+  },
+  intermediate: {
+    depth: "Assume the student knows the basics. Go deeper into the 'how'. Introduce technical terms with clear definitions. Cover edge cases, common mistakes, and practical patterns. Build on prior knowledge explicitly.",
+    steps: "6-7 steps",
+    quiz_style: "application and comprehension questions that require understanding, not just recall",
+    resources_style: "official documentation, intermediate tutorials, practice projects, and technical blogs",
+  },
+  advanced: {
+    depth: "Assume strong foundational knowledge. Explore the 'why it works this way' at a deep level. Cover internals, performance, trade-offs, design patterns, and expert-level nuances. Challenge assumptions.",
+    steps: "7-8 steps",
+    quiz_style: "analysis and synthesis questions requiring critical thinking and expert judgment",
+    resources_style: "research papers, advanced books, source code repositories, conference talks, and expert blogs",
+  },
+};
+
 export async function generateLesson(topic: string, level: string, language: string) {
-  const prompt = `Act as an expert teacher creating a "Guided Learning Journey" for a student.
-  Topic: "${topic}"
-  Level: "${level}"
-  Language: ${language}
+  const levelKey = level.toLowerCase().includes("beginner")
+    ? "beginner"
+    : level.toLowerCase().includes("intermediate")
+    ? "intermediate"
+    : "advanced";
 
-  Instructions:
-  1. Break the lesson into small, logical steps (5-8 steps). Each step must teach one core concept thoroughly.
-  2. For each step:
-     - Provide a clear, engaging explanation (Markdown).
-     - Include a "visual_description" which is a detailed prompt describing an image or diagram that explains this specific step.
-     - Include a "concept_check" (1 multiple choice question) to verify understanding before moving to the next step.
-  3. Ensure the tone is friendly, encouraging, and uses simple analogies.
-  4. The ENTIRE response must be in ${language}.
+  const ctx = LEVEL_CONTEXT[levelKey as keyof typeof LEVEL_CONTEXT] || LEVEL_CONTEXT.beginner;
 
-  Format the response as a valid JSON object:
-  {
-    "introduction": "Brief, exciting hook for the lesson...",
-    "introduction_visual": "Detailed cinematic prompt for the main cover image of this lesson",
-    "steps": [
-      {
-        "title": "Clear step title",
-        "explanation": "Engaging explanation using Markdown...",
-        "visual_description": "Detailed prompt for an image generator (in English for better results, but explanation must be in ${language})",
-        "quiz": {
-          "question": "Comprehension question",
-          "options": ["Opt A", "Opt B", "Opt C", "Opt D"],
-          "answer": "The correct option string",
-          "hint": "Helpful tip"
+  const prompt = `You are a world-class AI educator and deep research specialist. Your task is to create a comprehensive, level-calibrated "Guided Learning Journey".
+
+TOPIC: "${topic}"
+LEVEL: "${level}"
+LANGUAGE: ${language}
+
+LEVEL CALIBRATION RULES (CRITICAL - follow exactly):
+- ${ctx.depth}
+- Number of steps: ${ctx.steps}
+- Quiz style: ${ctx.quiz_style}
+- Resources style: ${ctx.resources_style}
+
+CONTENT REQUIREMENTS:
+1. Each step must teach ONE distinct concept, going progressively deeper.
+2. Steps must be UNIQUE and NOT repeat information from other steps.
+3. For ${level} level, the complexity, vocabulary, and depth MUST be appropriate — do NOT reuse beginner content for intermediate/advanced.
+4. Include real-world applications and concrete examples at the appropriate level.
+5. The ENTIRE response (except visual_description and resource URLs) must be in ${language}.
+
+Format the response as a valid JSON object with this EXACT structure:
+{
+  "introduction": "A compelling hook that acknowledges the student's current level and what they will master",
+  "introduction_visual": "Detailed cinematic English prompt for a cover image representing this topic at ${level} level",
+  "key_concepts": ["concept1", "concept2", "concept3", "concept4"],
+  "steps": [
+    {
+      "title": "Step title",
+      "explanation": "Rich explanation using Markdown with **bold**, bullet points, and code blocks where relevant",
+      "visual_description": "Detailed English prompt for an educational diagram/illustration for this specific concept",
+      "real_world": "A concrete real-world example or application of this concept at ${level} level",
+      "resources": [
+        {
+          "type": "video",
+          "title": "Specific video for this step",
+          "description": "Short explanation of why this video helps with THIS step",
+          "url": "https://www.youtube.com/results?search_query=[specific+topic+search]",
+          "difficulty": "${level}"
+        },
+        {
+          "type": "article",
+          "title": "Deep dive article",
+          "url": "https://www.google.com/search?q=[specific+topic+article+search]",
+          "difficulty": "${level}"
         }
+      ],
+      "quiz": {
+        "question": "A ${ctx.quiz_style} question",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "answer": "The exact correct option string",
+        "hint": "A helpful hint that guides without giving away the answer",
+        "explanation": "Brief explanation of WHY the answer is correct"
       }
-    ],
-    "summary": "Quick recap of the main points",
-    "final_motivation": "Inspiring closing line"
-  }
-  
-  Return ONLY the JSON object.`;
+    }
+  ],
+  "summary": "Concise recap of all key points covered",
+  "final_motivation": "Inspiring, level-appropriate closing message",
+  "resources": [
+    {
+      "type": "video",
+      "title": "Resource title",
+      "description": "Why this resource is perfect for ${level} learners of this topic",
+      "url": "https://www.youtube.com/results?search_query=[topic+tutorial]",
+      "difficulty": "${level}"
+    },
+    {
+      "type": "article",
+      "title": "Resource title",
+      "description": "Brief description",
+      "url": "https://www.google.com/search?q=[topic+advanced+guide]",
+      "difficulty": "${level}"
+    }
+  ]
+}
+
+Return ONLY the JSON object. No markdown fences, no extra text. 
+CRITICAL URL RULE: Provide REAL, functional, and specific links. If you don't know a specific URL, provide a HIGHLY TARGETED search URL (e.g., https://www.youtube.com/results?search_query=specific+topic+name). NEVER return placeholders like "https://youtube.com/" or bracketed text like "[topic]". Every URL must be a complete, valid string that works in a browser immediately.`;
 
   try {
-    // Try OpenAI first with rotation
-    return await withKeyRotation("OPENAI_API_KEY", async (key) => {
-      const openai = new OpenAI({ apiKey: key });
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
+    return await withKeyRotation("GEMINI_API_KEY", async (key) => {
+      const genAI = new GoogleGenerativeAI(key);
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-3-flash-preview",
+        generationConfig: { responseMimeType: "application/json" }
       });
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const contentText = response.text();
       
-      const rawContent = response.choices[0].message.content || "{}";
+      if (!contentText) {
+          throw new Error("Gemini returned an empty response");
+      }
+
+      const jsonMatch = contentText.match(/\{[\s\S]*\}/);
+      const cleanedText = jsonMatch
+        ? jsonMatch[0]
+        : contentText.replace(/```json|```/g, "").trim();
+      
       try {
-        return JSON.parse(rawContent);
-      } catch (parseError) {
-        console.error("OpenAI JSON Parse Error:", parseError);
-        throw parseError; // This will trigger fallback if OpenAI itself returns bad JSON
+          return JSON.parse(cleanedText);
+      } catch {
+          console.error("Gemini JSON parse failed. Content:", contentText.substring(0, 100));
+          throw new Error("AI produced invalid content format. Please try again.");
       }
     });
-  } catch (error) {
-    console.error("OpenAI exhausted or failed, falling back to Gemini:", error);
-    
-    // Fallback to Gemini with rotation
-    try {
-      return await withKeyRotation("GEMINI_API_KEY", async (key) => {
-        const genAI = new GoogleGenerativeAI(key);
-        const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const contentText = response.text();
-        const jsonMatch = contentText.match(/\{[\s\S]*\}/);
-        const cleanedText = jsonMatch ? jsonMatch[0] : contentText.replace(/```json|```/g, "").trim();
-        try {
-          return JSON.parse(cleanedText);
-        } catch (geminiParseError) {
-          console.error("Gemini JSON Parse Error:", geminiParseError);
-          throw geminiParseError;
-        }
-      });
-    } catch (geminiError) {
-      console.error("Combined AI Error:", geminiError);
-      throw new Error("All AI models and keys failed. Please check your API keys or quota.");
-    }
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("Gemini Error:", err.message || err);
+    throw new Error(err.message || "Gemini AI failed. Please check your API keys or quota.");
   }
 }
 
@@ -96,29 +154,17 @@ export async function explainInDarija(text: string) {
   - Use Latin characters (Arabizi/Darija with numbers) or Arabic script depending on how you feel vibe-wise, but keep it very readable.
   
   Respond directly as the buddy. No preamble.`;
-  
+
   try {
-    return await withKeyRotation("OPENAI_API_KEY", async (key) => {
-      const openai = new OpenAI({ apiKey: key });
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-      });
-      return response.choices[0].message.content;
+    return await withKeyRotation("GEMINI_API_KEY", async (key) => {
+      const genAI = new GoogleGenerativeAI(key);
+      const model = genAI.getGenerativeModel({ model: "gemini-3-flash" });
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      return response.text();
     });
-  } catch (error) {
-    console.error("OpenAI Error (Darija), falling back to Gemini:", error);
-    try {
-      return await withKeyRotation("GEMINI_API_KEY", async (key) => {
-        const genAI = new GoogleGenerativeAI(key);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        return response.text();
-      });
-    } catch (err) {
-      console.error("All AI sources for Darija failed:", err);
-      return "Oups! Sma7 lia, t3ksat lia l'magie chno bghiti t3rf?";
-    }
+  } catch (err) {
+    console.error("Gemini sources for Darija failed:", err);
+    return "Oups! Sma7 lia, t3ksat lia l'magie chno bghiti t3rf?";
   }
 }

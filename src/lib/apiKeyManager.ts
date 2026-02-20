@@ -49,26 +49,27 @@ export async function withKeyRotation<T>(
 
   for (let i = 0; i < keys.length; i++) {
     const key = keys[i];
+    const maskedKey = key.substring(0, 8) + "..." + key.substring(key.length - 4);
     try {
+      console.log(`[KeyManager] Attempting with ${keyPrefix} key #${i + 1} (${maskedKey})`);
       return await execute(key);
     } catch (error: unknown) {
       lastError = error;
       
       const err = error as Record<string, unknown>;
       const errorMessage = (err?.message as string)?.toLowerCase() || "";
+      console.error(`[KeyManager] Key #${i + 1} failed: ${errorMessage.substring(0, 100)}`);
       
       // We rotate on almost any error that suggests the key itself is the problem
-      // (Quota, Invalid, Rate Limit, Authentication, etc.)
       const shouldRotate = 
         keys.length > 1 && 
-        i < keys.length - 1; // Only rotate if we have more keys to try
+        i < keys.length - 1; 
 
       if (shouldRotate) {
-        console.warn(`[KeyManager] Key ${i + 1} for ${keyPrefix} failed. Error: ${errorMessage.substring(0, 50)}... Rotating to next key.`);
+        console.warn(`[KeyManager] Rotating to key #${i + 2}...`);
         continue; 
       }
       
-      // If it's the last key, we throw
       throw error;
     }
   }

@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, XCircle, ChevronRight, ChevronLeft, Trophy, Loader2, Volume2, Square, Play, Brain, Sparkles } from "lucide-react";
+import { CheckCircle2, XCircle, ChevronRight, ChevronLeft, Trophy, Loader2, Volume2, Square, Brain, Sparkles, BookOpen, Youtube, Wrench, FileText, Lightbulb, ArrowRight, Star, Play, TrendingUp } from "lucide-react";
 import { toast } from "react-hot-toast";
 import Confetti from "react-confetti";
 import { useWindowSize } from "react-use";
@@ -13,24 +13,45 @@ import { useStore } from "@/lib/store";
 import { translations } from "@/utils/translations";
 import { cn } from "@/lib/utils";
 
+const ensureAbsoluteUrl = (url: string) => {
+  if (!url || url === "#") return "https://www.google.com/search?q=";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("//")) return `https:${url}`;
+  return `https://${url}`;
+};
+
 interface Step {
   title: string;
   explanation: string;
   visual_description: string;
+  real_world?: string;
   quiz: {
     question: string;
     options: string[];
     answer: string;
     hint: string;
+    explanation?: string;
   };
+  resources?: Resource[];
   imageUrl?: string;
+}
+
+interface Resource {
+  type: 'video' | 'article' | 'book' | 'tool';
+  title: string;
+  description: string;
+  url: string;
+  difficulty: string;
 }
 
 interface NewLessonContent {
   introduction: string;
+  introduction_visual?: string;
+  key_concepts?: string[];
   steps: Step[];
   summary: string;
   final_motivation: string;
+  resources?: Resource[];
 }
 
 // Legacy support
@@ -258,8 +279,12 @@ export default function LessonPage() {
   const nextLevel = useMemo(() => {
     if (!lesson) return null;
     const current = lesson.level.toLowerCase();
-    if (current.includes('beginner')) return 'intermediate';
-    if (current.includes('intermediate')) return 'advanced';
+    
+    // Resilient level detection
+    if (current.includes('beginner') || current.includes('easy')) return 'intermediate';
+    if (current.includes('intermediate') || current.includes('medium')) return 'advanced';
+    if (current.includes('advanced') || current.includes('hard') || current.includes('expert')) return null;
+    
     return null;
   }, [lesson]);
 
@@ -279,14 +304,21 @@ export default function LessonPage() {
         }),
       });
       
-      if (!res.ok) throw new Error("Failed to summon next level");
+      const data = await res.json();
       
-      const newLesson = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to summon next level");
+      }
+      
       toast.success(t.correctMessage, { id: loadingToastId });
-      router.push(`/lesson/${newLesson.id}`);
-    } catch (err) {
-      toast.error(t.wrongMessage, { id: loadingToastId });
-      console.error("Level Up Error:", err);
+      router.push(`/lesson/${data.id}`);
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error("Level Up Error:", error);
+      toast.error(`Magical Surge Failed: ${error.message || "Archive unavailable"}`, { 
+        id: loadingToastId,
+        icon: '🚫'
+      });
     } finally {
       setIsLevelingUp(false);
     }
@@ -297,7 +329,7 @@ export default function LessonPage() {
   const shuffledOptions = useMemo(() => {
     if (!lesson) return [];
     const lessonData = lesson.content;
-    const isNewFormat = !!(lessonData as any)?.steps;
+    const isNewFormat = 'steps' in lessonData;
     const normalizedSteps: Step[] = isNewFormat 
       ? (lessonData as NewLessonContent).steps 
       : (lessonData as LegacyLessonContent).quizzes?.map((q, i) => ({
@@ -321,13 +353,24 @@ export default function LessonPage() {
 
   useEffect(() => {
     const fetchLesson = async () => {
+      // Reset state for new lesson load to prevent progress bleed
+      setLesson(null);
+      setCurrentStepIdx(-1);
+      setSelected(null);
+      setIsCorrect(null);
+      setScore(0);
+      setCompletedSteps(new Set());
+      setIsSpeaking(false);
+      window.speechSynthesis.cancel();
+      window.scrollTo(0, 0);
+
       try {
         const res = await fetch(`/api/lessons/${id}`);
         if (!res.ok) throw new Error("Cosmic archive not found.");
         const data = await res.json();
         setLesson(data);
         
-        // Restore progress
+        // Restore progress specifically for THIS lesson ID
         const savedStep = localStorage.getItem(`lesson_progress_${id}`);
         if (savedStep) {
           setCurrentStepIdx(parseInt(savedStep));
@@ -335,11 +378,17 @@ export default function LessonPage() {
 
         const savedCompleted = localStorage.getItem(`lesson_completed_steps_${id}`);
         if (savedCompleted) {
-          setCompletedSteps(new Set(JSON.parse(savedCompleted)));
+          const parsed = JSON.parse(savedCompleted);
+          setCompletedSteps(new Set(Array.isArray(parsed) ? parsed : []));
+        }
+
+        const savedScore = localStorage.getItem(`lesson_score_${id}`);
+        if (savedScore) {
+          setScore(parseInt(savedScore));
         }
 
       } catch {
-        toast.error("Failed to summon the lesson.");
+        toast.error("Failed to summon the lesson archive.");
       }
     };
     if (id) fetchLesson();
@@ -348,13 +397,15 @@ export default function LessonPage() {
 
   // Save progress
   useEffect(() => {
-    if (id && currentStepIdx >= 0) {
-      localStorage.setItem(`lesson_progress_${id}`, currentStepIdx.toString());
-    }
-    if (id && completedSteps.size > 0) {
+    if (!id || !lesson) return;
+    
+    localStorage.setItem(`lesson_progress_${id}`, currentStepIdx.toString());
+    localStorage.setItem(`lesson_score_${id}`, score.toString());
+    
+    if (completedSteps.size >= 0) {
       localStorage.setItem(`lesson_completed_steps_${id}`, JSON.stringify(Array.from(completedSteps)));
     }
-  }, [id, currentStepIdx, completedSteps]);
+  }, [id, currentStepIdx, completedSteps, score, lesson]);
 
   // Neural Prefetching: Preload all AI images in the background
   useEffect(() => {
@@ -364,7 +415,7 @@ export default function LessonPage() {
       
       // 1. Prepare all prompts including intro
       const prompts = [
-        { prompt: (lessonContent as any).introduction_visual || lesson.topic, type: 'intro' },
+        { prompt: (lessonContent as NewLessonContent).introduction_visual || lesson.topic, type: 'intro' },
         ...steps.map((s, i) => ({ prompt: s.visual_description, type: 'step', index: i }))
       ];
 
@@ -407,7 +458,7 @@ export default function LessonPage() {
   );
 
   const lessonData = lesson.content;
-  const isNewFormat = !!(lessonData as any).steps;
+  const isNewFormat = 'steps' in lessonData;
   // Typed helper for new format content — avoids union type errors
   const newContent = isNewFormat ? (lessonData as NewLessonContent) : null;
 
@@ -582,20 +633,24 @@ export default function LessonPage() {
 <AnimatePresence mode="wait">
           {currentStepIdx === -1 ? (
             <motion.div
-              key="intro"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.1 }}
-              className="glass-card p-8 md:p-20 text-center space-y-6 md:space-y-8"
+              key={`intro-${id}`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="glass-card p-8 md:p-20 text-center space-y-6 md:space-y-8 relative overflow-hidden"
             >
-              <div className="inline-block p-4 bg-primary/10 rounded-3xl border border-primary/20 mb-4">
-                 <Play className="w-12 h-12 text-primary animate-pulse" />
+              {/* Animated Background for Intro */}
+              <div className="absolute inset-0 bg-linear-to-b from-primary/5 via-transparent to-transparent opacity-50" />
+              
+              <div className="inline-block p-4 bg-primary/10 rounded-3xl border border-primary/20 mb-4 animate-bounce-slow relative z-10">
+                 <Play className="w-12 h-12 text-primary shadow-neon-blue" />
               </div>
-              <div className="relative group mb-8">
+
+              <div className="relative group mb-8 z-10">
                 <div className="absolute -inset-6 bg-linear-to-r from-primary via-secondary to-accent rounded-[3rem] blur-2xl opacity-20 group-hover:opacity-40 transition-all duration-1000" />
                 <div className="relative w-full max-w-sm aspect-square mx-auto rounded-[2.5rem] overflow-hidden border border-white/10 shadow-premium group-hover:border-primary/30 transition-all">
                   <ImageMaterializer 
-                    prompt={(lesson.content as any).introduction_visual || lesson.topic} 
+                    prompt={('introduction_visual' in lesson.content ? (lesson.content as NewLessonContent).introduction_visual : null) || lesson.topic} 
                     lessonId={lesson.id}
                     stepIndex={-1}
                     initialImageUrl={lesson.content.introductionImageUrl}
@@ -603,23 +658,36 @@ export default function LessonPage() {
                 </div>
               </div>
 
-              <h1 className="text-5xl md:text-7xl font-black gradient-text tracking-tighter">
-                {lesson.topic}
-              </h1>
-              <p className="text-2xl text-slate-600 dark:text-slate-400 font-bold max-w-2xl mx-auto leading-relaxed">
-                {isNewFormat ? newContent?.introduction : t.readyToMaster}
-              </p>
-              <div className="flex flex-col md:flex-row gap-6 justify-center mt-8">
-                <button onClick={() => setCurrentStepIdx(0)} className="btn-magic h-20 px-12 text-2xl tracking-tighter">
-                   {t.beginJourney}
+              <div className="space-y-4 relative z-10">
+                <div className="flex items-center justify-center gap-3 mb-2">
+                  <span className="px-3 py-1 bg-secondary/20 text-secondary border border-secondary/20 rounded-full text-[10px] font-black uppercase tracking-[0.2em]">
+                    {lesson.level} {t.journey}
+                  </span>
+                  <div className="h-px w-8 bg-white/10" />
+                  <span className="text-[10px] font-black text-slate-600 dark:text-slate-500 uppercase tracking-[0.2em]">
+                    {totalSteps} {t.unitsOfWisdom}
+                  </span>
+                </div>
+                <h1 className="text-5xl md:text-7xl font-black gradient-text tracking-tighter">
+                  {lesson.topic}
+                </h1>
+                <p className="text-2xl text-slate-700 dark:text-slate-400 font-bold max-w-2xl mx-auto leading-relaxed">
+                  {isNewFormat ? newContent?.introduction : t.readyToMaster}
+                </p>
+              </div>
+
+              <div className="flex flex-col md:flex-row gap-6 justify-center mt-8 relative z-10">
+                <button onClick={() => setCurrentStepIdx(0)} className="btn-magic h-20 px-12 text-2xl tracking-tighter group">
+                   <span className="group-hover:translate-x-1 transition-transform inline-block mr-2">{t.beginJourney}</span>
+                   <Sparkles className="inline-block w-6 h-6 animate-pulse" />
                 </button>
                 {nextLevel && (
                   <button 
                     onClick={handleLevelUp} 
                     disabled={isLevelingUp}
-                    className="glass h-20 px-12 rounded-3xl font-bold flex items-center border-white/10 hover:border-white/30 transition-all text-xl gap-3"
+                    className="glass h-20 px-12 rounded-3xl font-bold flex items-center border-white/10 hover:border-white/30 transition-all text-xl gap-3 hover:bg-white/5"
                   >
-                    {isLevelingUp ? <Loader2 className="animate-spin" /> : <Sparkles className="text-magic-gold" />}
+                    {isLevelingUp ? <Loader2 className="animate-spin" /> : <Trophy className="text-yellow-500" />}
                     {t.masterNextLevel} ({nextLevel})
                   </button>
                 )}
@@ -686,11 +754,54 @@ export default function LessonPage() {
                          {isSpeaking ? <Square className="w-5 h-5 fill-current" /> : <Volume2 className="w-5 h-5" />}
                       </button>
                     </div>
-                    <h2 className="text-4xl md:text-5xl font-black tracking-tight leading-tight text-slate-900 dark:text-white">{currentStep.title}</h2>
-                    <div className="whitespace-pre-wrap text-xl md:text-2xl text-slate-700 dark:text-slate-200 leading-relaxed font-semibold">
+                    <h2 className="text-4xl md:text-5xl font-black tracking-tight leading-tight text-text-main">{currentStep.title}</h2>
+                    <div className="whitespace-pre-wrap text-xl md:text-2xl text-slate-800 dark:text-slate-200 leading-relaxed font-semibold">
                       {currentStep.explanation}
                     </div>
-                  </div>
+
+                    {/* Real World Application */}
+                    {currentStep.real_world && (
+                      <div className="flex items-start gap-3 p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 mt-2">
+                        <Lightbulb className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-500 mb-1">{t.realWorld}</p>
+                          <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{currentStep.real_world}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step-Specific Resources */}
+                    {currentStep.resources && currentStep.resources.length > 0 && (
+                      <div className="space-y-3 pt-4 border-t border-white/5">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-500 flex items-center gap-2">
+                           <BookOpen className="w-3 h-3" /> Deep Dive for this Step
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {currentStep.resources.map((res, i) => (
+                            <a 
+                              key={i} 
+                              href={ensureAbsoluteUrl(res.url)} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="relative z-30 flex items-center gap-3 p-3 bg-white/5 border border-white/5 rounded-xl hover:bg-white/10 hover:border-primary/30 transition-all group pointer-events-auto"
+                            >
+                              <div className="p-2 bg-primary/10 rounded-lg group-hover:scale-110 transition-transform">
+                                {res.type === 'video' ? <Youtube className="w-4 h-4 text-red-400" /> :
+                                 res.type === 'book' ? <BookOpen className="w-4 h-4 text-emerald-400" /> :
+                                 res.type === 'tool' ? <Wrench className="w-4 h-4 text-primary" /> :
+                                 <FileText className="w-4 h-4 text-secondary" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{res.title}</p>
+                                <p className="text-[9px] font-medium text-slate-600 dark:text-slate-500 uppercase tracking-tighter">{res.type}</p>
+                              </div>
+                              <ArrowRight className="w-3 h-3 text-slate-600 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                   
                   {/* Navigation Buttons */}
                   <div className="flex gap-3 mt-6">
@@ -725,6 +836,7 @@ export default function LessonPage() {
                   )}
                 </div>
               </div>
+            </div>
 
               {/* Quiz Card */}
               <motion.div 
@@ -739,7 +851,7 @@ export default function LessonPage() {
                    <div className="w-12 h-12 bg-secondary/20 rounded-2xl flex items-center justify-center text-secondary">
                       <CheckCircle2 className="w-6 h-6" />
                    </div>
-                   <h3 className="text-2xl font-black text-slate-900 dark:text-white">{t.conceptCheck}: {currentStep.quiz.question}</h3>
+                   <h3 className="text-2xl font-black text-text-main">{t.conceptCheck}: {currentStep.quiz.question}</h3>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -751,8 +863,8 @@ export default function LessonPage() {
                       className={cn(
                         "p-6 rounded-2xl border-2 text-left font-bold transition-all duration-300",
                         selected === opt 
-                          ? (isCorrect ? "border-green-500 bg-green-500/10 text-green-500" : "border-red-500 bg-red-500/10 text-red-500")
-                          : "border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-200 hover:border-primary/40 hover:bg-slate-200 dark:hover:bg-white/10"
+                          ? (isCorrect ? "border-green-500 bg-green-500/10 text-green-600 dark:text-green-500" : "border-red-500 bg-red-500/10 text-red-600 dark:text-red-500")
+                          : "border-black/5 dark:border-white/5 bg-slate-100 dark:bg-white/5 text-slate-800 dark:text-slate-200 hover:border-primary/40 hover:bg-slate-200 dark:hover:bg-white/10"
                       )}
                     >
                       {opt}
@@ -764,7 +876,7 @@ export default function LessonPage() {
                   <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8 pt-8 border-t border-slate-200 dark:border-white/5 flex flex-col md:flex-row items-center justify-between gap-6">
                     {!isCorrect && selected && !completedSteps.has(currentStepIdx) && (
                       <>
-                        <p className="text-slate-500 dark:text-slate-400 font-bold italic flex-1">💡 {t.hint}: {currentStep.quiz.hint}</p>
+                        <p className="text-slate-600 dark:text-slate-400 font-bold italic flex-1">💡 {t.hint}: {currentStep.quiz.hint}</p>
                         <button 
                           onClick={handleRetry} 
                           className="px-8 py-4 bg-yellow-500/10 border-2 border-yellow-500/30 rounded-2xl text-yellow-400 font-black uppercase tracking-widest hover:bg-yellow-500/20 transition-all text-sm flex items-center gap-3 shadow-lg"
@@ -788,42 +900,191 @@ export default function LessonPage() {
               key="result"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="glass-card p-12 md:p-20 text-center space-y-12"
+              className="space-y-8"
             >
-              <div className="relative inline-block">
-                <div className="absolute -inset-8 bg-secondary blur-3xl opacity-20 animate-pulse" />
-                <Trophy className="w-24 h-24 text-magic-gold mx-auto drop-shadow-[0_0_15px_rgba(255,215,0,0.5)]" />
-              </div>
-              
-              <div className="space-y-4">
-                <h2 className="text-6xl font-black gradient-text tracking-tighter">{t.missionAccomplished}</h2>
-                <p className="text-2xl text-slate-600 dark:text-slate-400 font-bold max-w-xl mx-auto">
-                  {isNewFormat ? newContent?.final_motivation : t.youFinished}
-                </p>
-              </div>
+              {/* === HERO COMPLETION CARD === */}
+              <div className="glass-card p-12 md:p-16 text-center space-y-8 relative overflow-hidden">
+                {/* Background glow */}
+                <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 via-transparent to-primary/5 pointer-events-none" />
+                
+                {/* Trophy + Level Badge */}
+                <div className="relative inline-flex flex-col items-center gap-4">
+                  <div className="relative">
+                    <div className="absolute -inset-6 bg-yellow-400/20 blur-2xl animate-pulse rounded-full" />
+                    <Trophy className="w-20 h-20 text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.6)] relative z-10" />
+                  </div>
+                  <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-black uppercase tracking-widest">
+                    <Star className="w-3 h-3 text-yellow-500 dark:text-yellow-400" />
+                    <span className="text-slate-600 dark:text-slate-300">{lesson.level} — {t.completed}</span>
+                    <Star className="w-3 h-3 text-yellow-500 dark:text-yellow-400" />
+                  </div>
+                </div>
 
-              <div className="glass-card p-8 bg-slate-100 dark:bg-white/[0.03] max-w-2xl mx-auto border-slate-200 dark:border-white/5">
-                <p className="text-sm font-black uppercase tracking-widest text-slate-500 mb-4">{t.journeySummary}</p>
-                <div className="text-lg text-slate-700 dark:text-slate-300 leading-relaxed italic">
-                  &quot;{isNewFormat ? newContent?.summary : t.keepPracticing}&quot;
+                <div className="space-y-3">
+                  <h2 className="text-5xl md:text-6xl font-black gradient-text tracking-tighter">{t.missionAccomplished}</h2>
+                  <p className="text-xl text-slate-600 dark:text-slate-400 font-bold max-w-2xl mx-auto leading-relaxed">
+                    {isNewFormat ? newContent?.final_motivation : t.youFinished}
+                  </p>
+                </div>
+
+                {/* Score */}
+                <div className="flex items-center justify-center gap-3">
+                  <div className="px-6 py-3 rounded-2xl bg-primary/10 border border-primary/20 text-primary font-black text-lg">
+                    ⚡ {score} / {totalSteps} {t.correctMessage?.split('!')[0] || 'Correct'}
+                  </div>
+                </div>
+
+                {/* Key Concepts Recap */}
+                {isNewFormat && newContent?.key_concepts && newContent.key_concepts.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-500 flex items-center justify-center gap-2">
+                      <Lightbulb className="w-3 h-3" /> {t.keyConceptsMastered}
+                    </p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {newContent.key_concepts.map((concept, i) => (
+                        <span key={i} className="px-3 py-1.5 rounded-xl bg-white/5 border border-black/5 dark:border-white/10 text-slate-700 dark:text-slate-300 text-sm font-bold flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                          {concept}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Summary */}
+                <div className="glass-card p-6 bg-white/[0.02] max-w-2xl mx-auto border-white/5 text-left">
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-500 mb-3 flex items-center gap-2">
+                    <BookOpen className="w-3 h-3" /> {t.journeySummary}
+                  </p>
+                  <div className="text-base text-slate-700 dark:text-slate-300 leading-relaxed italic">
+                    &quot;{isNewFormat ? newContent?.summary : t.keepPracticing}&quot;
+                  </div>
                 </div>
               </div>
 
-              <div className="flex flex-col md:flex-row gap-6 justify-center pt-8">
-                <Link href="/dashboard" className="btn-magic h-20 px-12 text-xl tracking-tighter flex items-center gap-3">
+              {/* === LEVEL PROGRESSION PATH === */}
+              {nextLevel && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="glass-card p-8 relative overflow-hidden border-secondary/20 group"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-secondary/5 to-primary/5 pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity" />
+                  
+                  <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
+                    <div className="flex-1 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-secondary/20 rounded-xl">
+                          <TrendingUp className="w-5 h-5 text-secondary" />
+                        </div>
+                        <p className="text-xs font-black uppercase tracking-widest text-secondary">
+                          {t.knowledgeAscension}
+                        </p>
+                      </div>
+
+                      <h3 className="text-3xl font-black text-text-main">
+                        {t.masteringTier} <span className="gradient-text capitalize">{nextLevel}</span> {t.tier}
+                      </h3>
+
+                      <p className="text-slate-600 dark:text-slate-400 text-base leading-relaxed">
+                        {nextLevel === 'intermediate' 
+                          ? t.intermediateDesc
+                          : t.advancedDesc
+                        }
+                      </p>
+
+                      {/* Creative "New Infos" Preview */}
+                      <div className="pt-4 grid grid-cols-2 gap-3">
+                         <div className="p-3 bg-white/5 rounded-2xl border border-black/5 dark:border-white/10">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-500 mb-2">{t.upcomingFocus}</p>
+                            <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                              {nextLevel === 'intermediate' ? `⚙️ ${t.operationalLogic}` : `🧩 ${t.systemicArchitecture}`}
+                            </p>
+                         </div>
+                         <div className="p-3 bg-white/5 rounded-2xl border border-black/5 dark:border-white/10">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-500 mb-2">{t.complexityShift}</p>
+                            <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                              {nextLevel === 'intermediate' ? `📈 ${t.depthPlus}` : `🔥 ${t.expertInsights}`}
+                            </p>
+                         </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleLevelUp}
+                      disabled={isLevelingUp}
+                      className="btn-magic h-20 px-12 text-xl whitespace-nowrap flex items-center gap-4 shrink-0 shadow-neon-purple hover:scale-105 transition-all"
+                    >
+                      {isLevelingUp ? <Loader2 className="animate-spin w-6 h-6" /> : <Sparkles className="w-6 h-6" />}
+                      {isLevelingUp ? t.magicInProgress : `${t.levelUp} →`}
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* === RESOURCES SECTION === */}
+              {isNewFormat && newContent?.resources && newContent.resources.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="space-y-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-white/5" />
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-500 flex items-center gap-2">
+                      <BookOpen className="w-3 h-3" /> Curated Resources to Go Deeper
+                    </p>
+                    <div className="h-px flex-1 bg-white/5" />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {newContent.resources.map((resource, i) => {
+                      const icons = {
+                        video: <Youtube className="w-4 h-4 text-red-400" />,
+                        article: <FileText className="w-4 h-4 text-blue-400" />,
+                        book: <BookOpen className="w-4 h-4 text-amber-400" />,
+                        tool: <Wrench className="w-4 h-4 text-emerald-400" />,
+                      };
+                      const colors = {
+                        video: 'border-red-500/10 hover:border-red-500/30 bg-red-500/[0.03]',
+                        article: 'border-blue-500/10 hover:border-blue-500/30 bg-blue-500/[0.03]',
+                        book: 'border-amber-500/10 hover:border-amber-500/30 bg-amber-500/[0.03]',
+                        tool: 'border-emerald-500/10 hover:border-emerald-500/30 bg-emerald-500/[0.03]',
+                      };
+                      return (
+                        <a
+                          key={i}
+                          href={ensureAbsoluteUrl(resource.url)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`relative z-30 group flex items-start gap-3 p-4 rounded-2xl border transition-all duration-300 pointer-events-auto ${colors[resource.type] || 'border-white/5 hover:border-white/20'}`}
+                        >
+                          <div className="mt-0.5 shrink-0 p-2 rounded-xl bg-white/5">
+                            {icons[resource.type] || <BookOpen className="w-4 h-4 text-slate-400" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-sm text-text-main group-hover:text-primary transition-colors truncate">{resource.title}</p>
+                            <p className="text-xs text-slate-600 dark:text-slate-500 mt-0.5 line-clamp-2">{resource.description}</p>
+                            <span className="inline-block mt-1.5 text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-600 capitalize">{resource.type} · {resource.difficulty}</span>
+                          </div>
+                          <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0 mt-1" />
+                        </a>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* === BOTTOM ACTIONS === */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
+                <Link href="/dashboard" className="btn-magic h-14 px-10 text-base tracking-tighter flex items-center justify-center gap-3">
                   {t.backToHQ}
                 </Link>
-                {nextLevel ? (
-                   <button 
-                    onClick={handleLevelUp} 
-                    disabled={isLevelingUp}
-                    className="glass h-20 px-12 rounded-3xl font-bold flex items-center border-white/10 hover:border-white/30 transition-all text-xl gap-3"
-                   >
-                     {isLevelingUp ? <Loader2 className="animate-spin" /> : <Trophy className="text-magic-gold" />}
-                     {t.masterNextLevel} ({nextLevel})
-                   </button>
-                ) : (
-                  <Link href="/lesson/new" className="glass h-20 px-12 rounded-3xl font-bold flex items-center border-white/10 hover:border-white/30 transition-all text-xl">
+                {!nextLevel && (
+                  <Link href="/lesson/new" className="glass h-14 px-10 rounded-2xl font-bold flex items-center justify-center border-white/10 hover:border-white/30 transition-all text-base gap-2">
+                    <Sparkles className="w-4 h-4" />
                     {t.tryAnotherTopic}
                   </Link>
                 )}

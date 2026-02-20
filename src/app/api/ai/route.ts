@@ -44,21 +44,27 @@ export async function POST(req: Request) {
     }
 
     const { topic, level, language } = await req.json();
+    console.log(`[API/AI] Request received for topic: "${topic}", level: "${level}", language: "${language}"`);
 
     if (!topic || !level) {
+      console.warn("[API/AI] Missing required fields: topic or level");
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    console.log("[API/AI] Triggering generateLesson...");
     const content = await generateLesson(topic, level, language || "en");
+    console.log("[API/AI] generateLesson completed successfully.");
 
+    console.log("[API/AI] Inserting lesson into database...");
     const lesson = await prisma.lesson.create({
       data: {
         topic: topic,
         content,
         level,
-        userId: userId, // Using Clerk's userId directly
+        userId: userId,
       },
     });
+    console.log(`[API/AI] Lesson created successfully with ID: ${lesson.id}`);
 
     return NextResponse.json(lesson);
   } catch (error: unknown) {

@@ -75,13 +75,13 @@ export default function NewLesson() {
                 <h1 className="text-5xl font-black gradient-text tracking-tighter mb-2">
                   {t.summonNewLesson}
                 </h1>
-                <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">AI Powered Adventure</p>
+                <p className="text-slate-600 dark:text-slate-500 font-bold uppercase tracking-widest text-xs">AI Powered Adventure</p>
               </div>
             </div>
 
             <form onSubmit={handleCreate} className="space-y-12">
               <div className="space-y-6">
-                <label className="text-xl font-black tracking-tight flex items-center gap-3 text-white">
+                <label className="text-xl font-black tracking-tight flex items-center gap-3 text-text-main">
                   <span className="w-2 h-8 bg-primary rounded-full shadow-neon-blue" />
                   {t.learnQuestion}
                 </label>
@@ -93,7 +93,7 @@ export default function NewLesson() {
                       key={key}
                       type="button"
                       onClick={() => setTopic(value as string)}
-                      className="px-5 py-2.5 text-xs font-black rounded-xl bg-white/5 border border-white/5 hover:border-primary/50 hover:bg-primary/10 transition-all hover:scale-105 text-slate-400 hover:text-white uppercase tracking-wider"
+                      className="px-5 py-2.5 text-xs font-black rounded-xl bg-white/5 border border-black/5 dark:border-white/10 hover:border-primary/50 hover:bg-primary/10 transition-all hover:scale-105 text-slate-600 dark:text-slate-400 hover:text-text-main uppercase tracking-wider"
                     >
                        {value as string}
                     </button>
@@ -113,7 +113,7 @@ export default function NewLesson() {
               </div>
 
               <div className="space-y-6">
-                <label className="text-xl font-black tracking-tight flex items-center gap-3 text-white">
+                <label className="text-xl font-black tracking-tight flex items-center gap-3 text-text-main">
                   <span className="w-2 h-8 bg-secondary rounded-full shadow-neon-purple" />
                   {t.difficultyLevel}
                 </label>
@@ -126,8 +126,8 @@ export default function NewLesson() {
                       className={`group relative py-5 rounded-2xl border transition-all duration-500 font-black capitalize overflow-hidden tracking-tight ${
                         level === lvl 
                           ? "border-secondary text-black shadow-neon-purple scale-105 bg-secondary" 
-                          : "border-white/5 bg-white/5 hover:border-secondary/30 text-slate-500 hover:text-slate-300"
-                      }`}
+                          : "border-black/5 dark:border-white/5 bg-white/5 hover:border-secondary/30 text-slate-600 hover:text-slate-800 dark:text-slate-500 dark:hover:text-slate-300"
+                      } shadow-sm`}
                     >
                       <span className="relative z-10">{lvl}</span>
                     </button>

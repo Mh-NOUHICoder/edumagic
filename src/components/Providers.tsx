@@ -6,6 +6,29 @@ import { ThemeProvider } from "next-themes";
 import { useState } from "react";
 import { dark } from "@clerk/themes";
 import { Toaster } from "react-hot-toast";
+import { useEffect } from "react";
+import { useStore } from "@/lib/store";
+
+function LanguageWrapper({ children }: { children: React.ReactNode }) {
+  const { language } = useStore();
+
+  useEffect(() => {
+    const isRTL = language === 'ar';
+    document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+    document.documentElement.lang = language;
+    
+    // Update body class for font switching
+    if (isRTL) {
+      document.body.classList.add('font-arabic');
+      document.body.classList.remove('font-latin');
+    } else {
+      document.body.classList.add('font-latin');
+      document.body.classList.remove('font-arabic');
+    }
+  }, [language]);
+
+  return <div className={language === 'ar' ? 'rtl-grid' : ''}>{children}</div>;
+}
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
@@ -38,13 +61,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
     >
       <QueryClientProvider client={queryClient}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-          {children}
+          <LanguageWrapper>
+            {children}
+          </LanguageWrapper>
           <Toaster 
             position="top-right"
             toastOptions={{
-              className: 'glass-card border-white/10 text-white font-bold',
+              duration: 6000,
+              className: 'glass-card text-text-main font-bold border-black/5 dark:border-white/10 shadow-2xl',
               style: {
-                background: 'rgba(5, 7, 10, 0.8)',
+                background: 'var(--bg-card)',
+                color: 'var(--text-main)',
                 backdropFilter: 'blur(16px)',
               },
             }}
